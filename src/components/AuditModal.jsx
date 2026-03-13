@@ -22,15 +22,15 @@ const AuditModal = ({ isOpen, onClose, employee, onSaveSuccess }) => {
 
     const finalCanvas = document.createElement('canvas');
     const photoImg = new Image();
-    photoImg.src = photo;
-
     photoImg.onload = () => {
       finalCanvas.width = photoImg.width;
       finalCanvas.height = photoImg.height;
       const ctx = finalCanvas.getContext('2d');
       ctx.drawImage(photoImg, 0, 0);
       ctx.drawImage(signatureCanvas, 0, 0, photoImg.width, photoImg.height);
-      const mergedImage = finalCanvas.toDataURL('image/png');
+      
+      // Use JPEG with quality compression to save space
+      const mergedImage = finalCanvas.toDataURL('image/jpeg', 0.8);
 
       const newRecord = {
         id: `AUD-${Date.now()}`,
@@ -40,16 +40,37 @@ const AuditModal = ({ isOpen, onClose, employee, onSaveSuccess }) => {
         image: mergedImage
       };
 
-      const history = JSON.parse(localStorage.getItem('audit_history') || '[]');
-      localStorage.setItem('audit_history', JSON.stringify([newRecord, ...history]));
-      localStorage.setItem('audit_image', mergedImage);
+      try {
+        const history = JSON.parse(localStorage.getItem('audit_history') || '[]');
+        // Keep only last 10 audits to prevent storage bloat
+        const updatedHistory = [newRecord, ...history].slice(0, 10);
+        
+        localStorage.setItem('audit_history', JSON.stringify(updatedHistory));
+        localStorage.setItem('audit_image', mergedImage);
 
-      setTimeout(() => {
-        setIsSaving(false);
-        onSaveSuccess();
-        onClose();
-      }, 800);
+        setTimeout(() => {
+          setIsSaving(false);
+          onSaveSuccess();
+          onClose();
+        }, 800);
+      } catch (err) {
+        console.error('Failed to save audit:', err);
+        // Fallback: Clear old history and try one more time
+        localStorage.removeItem('audit_history');
+        try {
+          localStorage.setItem('audit_history', JSON.stringify([newRecord]));
+          localStorage.setItem('audit_image', mergedImage);
+          setIsSaving(false);
+          onSaveSuccess();
+          onClose();
+        } catch (retryErr) {
+          setIsSaving(false);
+          alert('Storage full. Please clear your browser cache to save more audits.');
+        }
+      }
     };
+    photoImg.src = photo;
+
   };
 
   return (

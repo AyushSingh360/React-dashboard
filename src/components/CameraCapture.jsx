@@ -14,15 +14,20 @@ const CameraCapture = ({ onCapture }) => {
         audio: false 
       });
       setStream(mediaStream);
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-        setIsStreaming(true);
-      }
+      setIsStreaming(true); // Set this first to ensure video element renders
+      setError(null);
     } catch (err) {
       setError('Could not access camera. Please check permissions.');
       console.error(err);
     }
   };
+
+  // Effect to attach stream once video element is rendered
+  React.useEffect(() => {
+    if (isStreaming && stream && videoRef.current) {
+      videoRef.current.srcObject = stream;
+    }
+  }, [isStreaming, stream]);
 
   const stopCamera = useCallback(() => {
     if (stream) {
@@ -33,7 +38,7 @@ const CameraCapture = ({ onCapture }) => {
   }, [stream]);
 
   const capturePhoto = () => {
-    if (videoRef.current) {
+    if (videoRef.current && videoRef.current.readyState === 4) {
       const canvas = document.createElement('canvas');
       canvas.width = videoRef.current.videoWidth;
       canvas.height = videoRef.current.videoHeight;
@@ -44,6 +49,7 @@ const CameraCapture = ({ onCapture }) => {
       stopCamera();
     }
   };
+
 
   // Cleanup handled by manual stop button
   // stream should ideally be cleaned up on unmount too

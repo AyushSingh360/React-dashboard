@@ -1,16 +1,24 @@
 # Employee Insights Dashboard
 
+[GitHub Repository Link](https://github.com/AyushSingh360/React-dashboard.git)
+
+
 This is my submission for the dashboard assignment. It's a high-performance React app with a few custom-built pieces—most notably the virtualization and the identity audit system. 
 
 The main goal here was to build everything from scratch without relying on external UI kits or helper libraries for the core logic. Everything you see is styled with raw Tailwind CSS.
 
-## The Technical Bits
+### Custom Scroller (Virtualization Math)
+To maintain 60FPS performance with large datasets, I implemented a custom 'Windowing' system. 
 
-### Custom Scroller (Virtualization)
-Since the dataset can get pretty big, I didn't want to just dump 100+ rows into the DOM. I built a custom virtualizer in `VirtualGrid.jsx`. 
-- Basically, I track the `scrollTop` and only render what's actually visible in the viewport plus a small buffer of 5 rows.
-- Everything is absolutely positioned, so the browser doesn't have to freak out and re-layout the whole table on every tiny scroll. 
-- The scroller uses a big "spacer" div to keep the native scrollbar feel consistent.
+**The Virtualization Math:**
+1. **Container Height (`H`)**: Constant (600px).
+2. **Row Height (`h`)**: Constant (72px).
+3. **Scroll Position (`S`)**: Tracked via `scrollTop` on the container.
+4. **StartIndex**: `floor(S / h) - buffer`. We calculate how many items are already scrolled out of view.
+5. **EndIndex**: `ceil((S + H) / h) + buffer`. We calculate how many items can fit in the viewport plus the ones scrolled out.
+6. **Positioning**: Each visible item is placed at `top: (index * h)px`.
+7. **Total Height**: A 'spacer' div is set to `TotalRows * h` to trick the browser into showing a realistic scrollbar.
+
 
 ### Audit Image Merging
 For the employee verification, I'm using a mix of a couple of things. The camera frame is captured as a JPEG, and I've got a signature canvas sitting on top of it.
@@ -26,10 +34,17 @@ I used Leaflet for the map, but since I didn't want to mess around with geocodin
 - **No Virtualization Libs**: The scrolling math is 100% my own.
 - **Data Viz**: The salary chart is rendered using raw SVG elements (`<rect>`, `<text>`, etc.).
 
-## The "Intentional" Bug
-As part of the requirements, I've left a **memory leak** in the `CameraCapture.jsx` component.
-- **The Issue**: When you start the camera, the `MediaStream` gets saved to the component state, but I "forgot" to add a cleanup function in a `useEffect`.
-- **The Result**: If you leave the page while the camera is still on, that stream never stops, so the camera stays active in the background. It's a classic async cleanup mistake.
+## The Intentional Bug
+
+**What is it?**  
+A camera stream leak. When the Audit Modal starts the camera, it initializes a `MediaStream`.
+
+**Where is it?**  
+In `src/components/CameraCapture.jsx`. Specifically, the component lacks a `useEffect` cleanup function or an unmount handler that calls `track.stop()` on the stream.
+
+**Why did I choose it?**  
+I chose this because it’s a very common real-world issue in React applications dealing with hardware APIs. It clearly demonstrates the importance of component lifecycle management and resource cleanup. From a demonstration standpoint, it's also "visible" because the camera light remains on even after navigating away, making it easy to point out in a technical review.
+
 
 ## Getting Started
 
