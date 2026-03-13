@@ -1,53 +1,43 @@
 # Employee Insights Dashboard
 
-A high-performance React dashboard featuring custom virtualization, camera integration, and automated audit image merging. This project was built from scratch without any pre-made component libraries or utility libraries for core logic.
+This is my submission for the dashboard assignment. It's a high-performance React app with a few custom-built pieces—most notably the virtualization and the identity audit system. 
 
-## Technical Compliance Checklist
+The main goal here was to build everything from scratch without relying on external UI kits or helper libraries for the core logic. Everything you see is styled with raw Tailwind CSS.
 
-- [x] **Zero UI Libraries**: Built exclusively with raw Tailwind CSS v4. No MUI, Ant Design, or Bootstrap.
-- [x] **Zero Core Utilities**: Virtualization logic is 100% custom. No `react-window` or `react-virtualized`.
-- [x] **Secure Auth**: Persistent context-based Auth Provider with route guards and session persistence.
-- [x] **Data Visualization**: Salary distributions rendered using raw SVG elements.
-- [x] **Identity Verification**: Native Camera API integration with HTML5 Canvas signature merging.
-- [x] **Geospatial Mapping**: Leaflet implementation with custom city-to-coordinate lookup.
-- [x] **Intentional Vulnerability**: One documented memory leak (see below).
+## The Technical Bits
 
-## Deep-Dive Technical Logic
+### Custom Scroller (Virtualization)
+Since the dataset can get pretty big, I didn't want to just dump 100+ rows into the DOM. I built a custom virtualizer in `VirtualGrid.jsx`. 
+- Basically, I track the `scrollTop` and only render what's actually visible in the viewport plus a small buffer of 5 rows.
+- Everything is absolutely positioned, so the browser doesn't have to freak out and re-layout the whole table on every tiny scroll. 
+- The scroller uses a big "spacer" div to keep the native scrollbar feel consistent.
 
-### 1. Custom Virtualization Math
-The `VirtualGrid` component implements a high-performance windowing system to handle large employee datasets smoothly.
-- **Scroll Tracking**: We listen to the `onScroll` event of a fixed-height container and store the `scrollTop` in state.
-- **Index Calculation**:
-    - `startIndex`: `Math.max(0, Math.floor(scrollTop / rowHeight) - buffer)`
-    - `endIndex`: `Math.min(data.length, Math.ceil((scrollTop + containerHeight) / rowHeight) + buffer)`
-- **Dom Rendering**: We render a "spacer" div with the `totalHeight` (`data.length * rowHeight`) to maintain scrollbar integrity.
-- **Absolute Positioning**: Visible rows are slice-selected and positioned absolutely using `top: index * rowHeight`. This prevents the browser from re-painting the entire list on every scroll tick.
+### Audit Image Merging
+For the employee verification, I'm using a mix of a couple of things. The camera frame is captured as a JPEG, and I've got a signature canvas sitting on top of it.
+- To get the final image, I spin up a hidden canvas in memory.
+- I draw the photo first, then layer the signature on top using `drawImage`.
+- It exports as one flattened Base64 string so it’s easy to store and show later in the analytics section.
 
-### 2. The "Blob" Image Merging
-The audit process culminates in a programmatic merge of the biometric photo and the digital signature.
-1. **Source 1**: A 1280x720 JPEG frame captured from the `MediaDevices` stream.
-2. **Source 2**: A transparent HTML5 Canvas containing the user's vectorized signature.
-3. **Merging Process**:
-    - Create a hidden off-screen `canvas` element.
-    - Set dimensions to match the captured photo.
-    - `ctx.drawImage(photoImg, 0, 0)`: Lay down the base photo.
-    - `ctx.drawImage(signatureCanvas, 0, 0, w, h)`: Layer the signature on top, scaling it to fit the photo's aspect ratio.
-4. **Export**: The result is exported via `toDataURL('image/png')`, resulting in a single flattened Base64 string representing the legal audit record.
+### City & Map Mapping
+I used Leaflet for the map, but since I didn't want to mess around with geocoding APIs, I just mapped out the coordinates for the major Indian cities manually in a lookup table in `Analytics.jsx`. It's fast and avoids unnecessary network calls.
 
-### 3. City Coordinate Mapping
-To avoid external geocoding API dependencies, I implemented a static lookup table in `Analytics.jsx`. This maps city names returned by the API (like "Mumbai", "Bangalore") to their exact [Latitude, Longitude] pairs, allowing Leaflet to plot markers accurately without network latency.
+## Rules I Followed
+- **No UI Libs**: No MUI, Bootstrap, or anything else. Just raw Tailwind and standard CSS.
+- **No Virtualization Libs**: The scrolling math is 100% my own.
+- **Data Viz**: The salary chart is rendered using raw SVG elements (`<rect>`, `<text>`, etc.).
 
-## Intentional Bug (Submission Requirement)
+## The "Intentional" Bug
+As part of the requirements, I've left a **memory leak** in the `CameraCapture.jsx` component.
+- **The Issue**: When you start the camera, the `MediaStream` gets saved to the component state, but I "forgot" to add a cleanup function in a `useEffect`.
+- **The Result**: If you leave the page while the camera is still on, that stream never stops, so the camera stays active in the background. It's a classic async cleanup mistake.
 
-**Bug**: **Memory Leak** in `CameraCapture.jsx`.
-**Location**: `src/components/CameraCapture.jsx`
-**Why**: The `MediaStream` obtained via `getUserMedia` is stored in state but is **not** stopped in a `useEffect` cleanup function. If a user enables the camera but navigates away from the page before capturing or resetting, the camera hardware stays active (indicated by the green light), leaking system resources and violating privacy best-practices. This was chosen specifically to represent a common "real-world" async cleanup oversight.
-
-## Setup & Credentials
+## Getting Started
 
 1. `npm install`
 2. `npm run dev`
 
-**Credentials:**
-- Username: `testuser`
-- Password: `Test123`
+**Logins:**
+- **User**: `testuser`
+- **Pass**: `Test123`
+
+
